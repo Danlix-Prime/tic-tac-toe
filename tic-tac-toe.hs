@@ -1,19 +1,30 @@
 data Square = EmptySquare Int
             | X
             | O
-            deriving (Show, Eq)
+            deriving (Eq)
+
+instance Show Square where
+  show (EmptySquare int) = show int
+  show X                 = "X"
+  show O                 = "O"
 
 data Row = Row {
             firstSquare  :: Square,
             secondSquare :: Square,
             thirdSquare  :: Square
-         } deriving (Show)
+         }
+
+instance Show Row where
+  show row = (show (firstSquare row)) ++ " | " ++ (show (secondSquare row)) ++ " | " ++ (show (thirdSquare row))
 
 data Board = Board {
              firstRow  :: Row,
              secondRow :: Row,
              thirdRow  :: Row
-           } deriving (Show)
+           }
+
+instance Show Board where
+  show board = (show (firstRow board)) ++ "\n-   -   -\n" ++ (show (secondRow board)) ++ "\n-   -   -\n" ++ (show (thirdRow board))
 
 blankBoard = Board (Row (EmptySquare 1) (EmptySquare 2) (EmptySquare 3)) 
                    (Row (EmptySquare 4) (EmptySquare 5) (EmptySquare 6)) 
@@ -50,12 +61,3 @@ updateBoard board rowI colI square = let row' = updateSquareInRow (rowByIndex ro
                                        1 -> Board (firstRow board) row'              (thirdRow board)
                                        2 -> Board (firstRow board) (secondRow board) row'
 
---parseInput :: String -> (Int, Int, Maybe Square)
---parseInput str = (row', col', square')
---               where [row:col:square:[]] = words str
---                     row'                = read row :: Int
---                     col'                = read col :: Int
---                     square'             = case square of
---                                             "x"       -> Just X
---                                             "o"       -> Just O
---                                             otherwise -> Nothing
