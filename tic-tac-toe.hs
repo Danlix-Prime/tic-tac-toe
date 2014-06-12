@@ -1,7 +1,7 @@
 data Square = EmptySquare Int
             | X
             | O
-            deriving (Eq)
+            deriving (Eq, Read)
 
 instance Show Square where
   show (EmptySquare int) = show int
@@ -55,9 +55,33 @@ updateRowInBoard (Board f s t) i v
                  | i == 2 = Board f s v
 
 updateBoard :: Board -> Int -> Int -> Square -> Board
-updateBoard board rowI colI square = let row' = updateSquareInRow (rowByIndex rowI board) colI square
-                                     in case rowI of
-                                       0 -> Board row'             (secondRow board) (thirdRow board)
-                                       1 -> Board (firstRow board) row'              (thirdRow board)
-                                       2 -> Board (firstRow board) (secondRow board) row'
+updateBoard board rowI colI square = updateRowInBoard board rowI row'
+                                   where row' = updateSquareInRow (rowByIndex rowI board) colI square
 
+indexToCoords :: Int -> (Int, Int)
+indexToCoords int = ((int - (int `mod` 3)) `quot` 3, int `mod` 3)
+
+swapPlayer :: Square -> Square
+swapPlayer X = O
+swapPlayer O = X
+swapPlayer _ = error "Only Xs or Os"
+
+loop :: Board -> Int -> Square -> IO ()
+loop board turnNo player = do
+  putStrLn $ (show board)
+  str <- getLine
+  if turnNo > 9
+  then
+    return ()
+  else
+    let
+      number     = read str :: Int
+      (row, col) = indexToCoords (number - 1)
+      board'     = updateBoard board row col player
+      player'    = swapPlayer player
+      turn'      = turnNo + 1
+    in
+      loop board' turn' player'
+
+main :: IO ()
+main = loop blankBoard 0 X
