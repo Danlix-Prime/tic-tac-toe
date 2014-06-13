@@ -26,6 +26,7 @@ data Board = Board {
 instance Show Board where
   show board = (show (firstRow board)) ++ "\n-   -   -\n" ++ (show (secondRow board)) ++ "\n-   -   -\n" ++ (show (thirdRow board))
 
+blankBoard :: Board
 blankBoard = Board (Row (EmptySquare 1) (EmptySquare 2) (EmptySquare 3)) 
                    (Row (EmptySquare 4) (EmptySquare 5) (EmptySquare 6)) 
                    (Row (EmptySquare 7) (EmptySquare 8) (EmptySquare 9))
@@ -36,11 +37,15 @@ squareByIndex index row
               | index == 1 = secondSquare row
               | index == 2 = thirdSquare row
 
-rowByIndex :: Int -> Board -> Row
-rowByIndex index board
+rowByIndex :: Board -> Int -> Row
+rowByIndex board index
            | index == 0 = firstRow board
            | index == 1 = secondRow board
            | index == 2 = thirdRow board
+
+squareByCoords :: Board -> (Int, Int) -> Square
+squareByCoords board (rowI, colI) = let row = rowByIndex board rowI
+                                 in squareByIndex colI row
 
 updateSquareInRow :: Row -> Int -> Square -> Row
 updateSquareInRow (Row f s t) i v
@@ -56,7 +61,7 @@ updateRowInBoard (Board f s t) i v
 
 updateBoard :: Board -> Int -> Int -> Square -> Board
 updateBoard board rowI colI square = updateRowInBoard board rowI row'
-                                   where row' = updateSquareInRow (rowByIndex rowI board) colI square
+                                   where row' = updateSquareInRow (rowByIndex board rowI) colI square
 
 indexToCoords :: Int -> (Int, Int)
 indexToCoords int = ((int - (int `mod` 3)) `quot` 3, int `mod` 3)
@@ -66,11 +71,33 @@ swapPlayer X = O
 swapPlayer O = X
 swapPlayer _ = error "Only Xs or Os"
 
+checkRow :: Row -> Bool
+checkRow (Row f s t) = ((f) == (s)) && ((s) == (t))
+
+checkColumn :: Board -> Int -> Bool
+checkColumn board col = let (f:s:t:xs) = map (\ row -> squareByIndex col row) $ map (\ row -> rowByIndex board row) [0..2]
+                        in  ((f) == (s)) && ((s) == (t))
+
+checkDiagonals :: Board -> Bool
+checkDiagonals board = let lookUp = squareByCoords board
+                           (f:s:t:[]) = map lookUp [(0, 0), (1, 1), (2, 2)]
+                           (f':_:t':[]) = map lookUp [(0, 2), (1, 1), (2, 0)]
+                       in ((f == s) && (s == t)) || ((f' == s) && (s == t'))
+
+checkRows :: Board -> Bool
+checkRows board = any checkRow $ map (rowByIndex board) [0..2]
+
+checkColumns :: Board -> Bool
+checkColumns board = or $ map (checkColumn board) [0..2]
+
+checkBoard :: Board -> Bool
+checkBoard board = (checkColumns board) || (checkRows board) || (checkDiagonals board)
+
 loop :: Board -> Int -> Square -> IO ()
 loop board turnNo player = do
-  putStrLn $ (show board)
+  putStrLn $ show board
   str <- getLine
-  if turnNo > 9
+  if turnNo >= 8
   then
     return ()
   else
@@ -78,10 +105,15 @@ loop board turnNo player = do
       number     = read str :: Int
       (row, col) = indexToCoords (number - 1)
       board'     = updateBoard board row col player
+      victory    = checkBoard board'
       player'    = swapPlayer player
       turn'      = turnNo + 1
-    in
-      loop board' turn' player'
+    in do
+      if victory
+      then
+        putStrLn $ (show board') ++ "\n" ++ (show player) ++ " Wins!"
+      else
+        loop board' turn' player'
 
 main :: IO ()
 main = loop blankBoard 0 X
