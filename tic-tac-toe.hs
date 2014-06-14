@@ -1,3 +1,5 @@
+import Control.Monad
+
 data Square = EmptySquare Int
             | X
             | O
@@ -15,7 +17,7 @@ data Row = Row {
          }
 
 instance Show Row where
-  show row = (show (firstSquare row)) ++ " | " ++ (show (secondSquare row)) ++ " | " ++ (show (thirdSquare row))
+  show row = show (firstSquare row) ++ " | " ++ show (secondSquare row) ++ " | " ++ show (thirdSquare row)
 
 data Board = Board {
              firstRow  :: Row,
@@ -24,7 +26,7 @@ data Board = Board {
            }
 
 instance Show Board where
-  show board = (show (firstRow board)) ++ "\n-   -   -\n" ++ (show (secondRow board)) ++ "\n-   -   -\n" ++ (show (thirdRow board))
+  show board = show (firstRow board) ++ "\n-   -   -\n" ++ show (secondRow board) ++ "\n-   -   -\n" ++ show (thirdRow board)
 
 blankBoard :: Board
 blankBoard = Board (Row (EmptySquare 1) (EmptySquare 2) (EmptySquare 3)) 
@@ -36,28 +38,32 @@ squareByIndex index row
               | index == 0 = firstSquare row
               | index == 1 = secondSquare row
               | index == 2 = thirdSquare row
+squareByIndex _ _        = error "Rows only have three squares"
 
 rowByIndex :: Board -> Int -> Row
 rowByIndex board index
            | index == 0 = firstRow board
            | index == 1 = secondRow board
            | index == 2 = thirdRow board
+rowByIndex _ _        = error "Boards only have three rows"
 
 squareByCoords :: Board -> (Int, Int) -> Square
 squareByCoords board (rowI, colI) = let row = rowByIndex board rowI
-                                 in squareByIndex colI row
+                                    in squareByIndex colI row
 
 updateSquareInRow :: Row -> Int -> Square -> Row
 updateSquareInRow (Row f s t) i v
                   | i == 0 = Row v s t
                   | i == 1 = Row f v t
                   | i == 2 = Row f s v
+updateSquareInRow _ _ _ = error "Rows only have three squares"
 
 updateRowInBoard :: Board -> Int -> Row -> Board
 updateRowInBoard (Board f s t) i v
                  | i == 0 = Board v s t
                  | i == 1 = Board f v t
                  | i == 2 = Board f s v
+updateRowInBoard _ _ _ = error "Boards only have three rows"
 
 updateBoard :: Board -> Int -> Int -> Square -> Board
 updateBoard board rowI colI square = updateRowInBoard board rowI row'
@@ -72,11 +78,11 @@ swapPlayer O = X
 swapPlayer _ = error "Only Xs or Os"
 
 checkRow :: Row -> Bool
-checkRow (Row f s t) = ((f) == (s)) && ((s) == (t))
+checkRow (Row f s t) = (f == s) && (s == t)
 
 checkColumn :: Board -> Int -> Bool
-checkColumn board col = let (f:s:t:xs) = map (\ row -> squareByIndex col row) $ map (\ row -> rowByIndex board row) [0..2]
-                        in  ((f) == (s)) && ((s) == (t))
+checkColumn board col = let (f:s:t:[]) = map (squareByIndex col . rowByIndex board) [0..2]
+                        in  (f == s) && (s == t)
 
 checkDiagonals :: Board -> Bool
 checkDiagonals board = let lookUp = squareByCoords board
@@ -88,31 +94,25 @@ checkRows :: Board -> Bool
 checkRows board = any checkRow $ map (rowByIndex board) [0..2]
 
 checkColumns :: Board -> Bool
-checkColumns board = or $ map (checkColumn board) [0..2]
+checkColumns board = any (checkColumn board) [0..2]
 
 checkBoard :: Board -> Bool
-checkBoard board = (checkColumns board) || (checkRows board) || (checkDiagonals board)
+checkBoard board = checkColumns board || checkRows board || checkDiagonals board
 
 loop :: Board -> Int -> Square -> IO ()
 loop board turnNo player = do
-  putStrLn $ show board
+  print board
   str <- getLine
-  if turnNo >= 8
-  then
-    return ()
-  else
-    let
-      number     = read str :: Int
-      (row, col) = indexToCoords (number - 1)
-      board'     = updateBoard board row col player
-      victory    = checkBoard board'
-      player'    = swapPlayer player
-      turn'      = turnNo + 1
-    in do
-      if victory
-      then
-        putStrLn $ (show board') ++ "\n" ++ (show player) ++ " Wins!"
-      else
+  Control.Monad.unless (turnNo >= 8) $
+    let number = read str :: Int
+        (row, col) = indexToCoords (number - 1)
+        board' = updateBoard board row col player
+        victory = checkBoard board'
+        player' = swapPlayer player
+        turn' = turnNo + 1
+      in
+        if victory then
+        putStrLn $ show board' ++ "\n" ++ show player ++ " Wins!" else
         loop board' turn' player'
 
 main :: IO ()
